@@ -1,6 +1,17 @@
-import { ZodOptional } from './ZodOptional.js';
+import type { Infer } from '../index.js';
+
+export class ZodValidationError extends Error {
+	public errors: { path: (string | number)[]; message: string }[];
+
+	constructor(errors: { path: (string | number)[]; message: string }[]) {
+		super('Validation failed');
+		this.errors = errors;
+	}
+}
 
 export abstract class ZodType<T> {
+	public _output!: T;
+
 	protected constructor(protected readonly parser: (data: unknown) => T) {}
 
 	parse(data: unknown): T {
@@ -43,5 +54,31 @@ export abstract class ZodType<T> {
 
 	optional(): ZodOptional<this> {
 		return new ZodOptional(this);
+	}
+
+	default(defaultValue: Infer<this>): ZodDefault<this> {
+		return new ZodDefault(this, defaultValue);
+	}
+}
+
+export class ZodOptional<S extends ZodType<any>> extends ZodType<
+	Infer<S> | undefined
+> {
+	constructor(public inner: S) {
+		super((data: unknown) => {
+			if (data === undefined) {
+				return undefined as Infer<S> | undefined;
+			}
+			return inner.parse(data);
+		});
+	}
+}
+
+export class ZodDefault<S extends ZodType<any>> extends ZodType<Infer<S>> {
+	constructor(public inner: S, public defaultValue: Infer<S>) {
+		super((data: unknown) => {
+			if (data === undefined) return defaultValue;
+			return inner.parse(data);
+		});
 	}
 }

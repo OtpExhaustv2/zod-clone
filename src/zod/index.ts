@@ -32,7 +32,7 @@ const z = {
 };
 
 type Zod = typeof z;
-type Infer<T extends ZodType<any>> = T extends ZodType<infer U> ? U : never;
+type Infer<S extends ZodType<any>> = S['_output'];
 
 export type { Infer, Zod };
 
