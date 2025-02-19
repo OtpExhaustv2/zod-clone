@@ -1,0 +1,12 @@
+{
+	"name": "zod-clone",
+	"type": "module",
+	"scripts": {
+		"dev": "tsx watch src/index.ts"
+	},
+	"dependencies": {},
+	"devDependencies": {
+		"@types/node": "^20.11.17",
+		"tsx": "^4.7.1"
+	}
+}
