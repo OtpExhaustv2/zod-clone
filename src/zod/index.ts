@@ -32,7 +32,19 @@ const z = {
 };
 
 type Zod = typeof z;
-type Infer<S extends ZodType<any>> = S['_output'];
+
+type OptionalKeys<T> = {
+	[K in keyof T]-?: undefined extends T[K] ? K : never;
+}[keyof T];
+
+type MakeOptional<T> = Omit<T, OptionalKeys<T>> &
+	Partial<Pick<T, OptionalKeys<T>>>;
+
+type Flatten<T> = { [K in keyof T]: T[K] };
+
+type Infer<S extends ZodType<any>> = S['_output'] extends object
+	? Flatten<MakeOptional<S['_output']>>
+	: S['_output'];
 
 export type { Infer, Zod };
 

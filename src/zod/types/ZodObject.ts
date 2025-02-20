@@ -5,9 +5,7 @@ export type ObjectShapeToType<T extends Record<string, ZodType<any>>> = {
 	[K in keyof T]: Infer<T[K]>;
 };
 
-export class ZodObject<T extends Record<string, any>> extends ZodType<
-	ObjectShapeToType<T>
-> {
+export class ZodObject<T extends Record<string, any>> extends ZodType<T> {
 	constructor(private shape: { [K in keyof T]: ZodType<T[K]> }) {
 		super((data) => {
 			if (typeof data !== 'object' || data === null) {
