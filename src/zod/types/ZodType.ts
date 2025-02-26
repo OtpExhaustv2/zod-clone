@@ -18,6 +18,10 @@ export abstract class ZodType<T> {
 		return this.parser(data);
 	}
 
+	async parseAsync(data: unknown): Promise<T> {
+		return this.parse(data);
+	}
+
 	protected withParser(newParser: (data: unknown) => T): this {
 		return new (this.constructor as new (parser: (data: unknown) => T) => this)(
 			newParser
@@ -34,6 +38,26 @@ export abstract class ZodType<T> {
 		});
 	}
 
+	refineAsync(
+		check: (data: T) => Promise<boolean> | boolean,
+		message?: string
+	): ZodAsyncType<T> {
+		const parent = this;
+		return new (class extends ZodAsyncType<T> {
+			constructor() {
+				super((data: unknown) => parent.parse(data));
+			}
+			async parseAsync(data: unknown): Promise<T> {
+				const parsed = await parent.parseAsync(data);
+				const ok = await Promise.resolve(check(parsed));
+				if (!ok) {
+					throw new Error(message || 'Async refinement failed');
+				}
+				return parsed;
+			}
+		})();
+	}
+
 	safeParse(
 		data: unknown
 	): { success: true; data: T } | { success: false; error: unknown } {
@@ -42,6 +66,17 @@ export abstract class ZodType<T> {
 			return { success: true, data: parsed };
 		} catch (error) {
 			return { success: false, error };
+		}
+	}
+
+	async safeParseAsync(
+		data: unknown
+	): Promise<{ success: true; data: T } | { success: false; error: unknown }> {
+		try {
+			const result = await this.parseAsync(data);
+			return { success: true, data: result };
+		} catch (e) {
+			return { success: false, error: e };
 		}
 	}
 
@@ -58,6 +93,10 @@ export abstract class ZodType<T> {
 
 	default(defaultValue: Infer<this>): ZodDefault<this> {
 		return new ZodDefault(this, defaultValue);
+	}
+
+	nullable(): ZodNullable<this> {
+		return new ZodNullable(this);
 	}
 }
 
@@ -80,5 +119,36 @@ export class ZodDefault<S extends ZodType<any>> extends ZodType<Infer<S>> {
 			if (data === undefined) return defaultValue;
 			return inner.parse(data);
 		});
+	}
+}
+
+export class ZodTransform<S extends ZodType<any>, U> extends ZodType<U> {
+	constructor(public inner: S, public transformFn: (data: Infer<S>) => U) {
+		super((data: unknown) => {
+			const parsed = this.inner.parse(data);
+			return this.transformFn(parsed) as U;
+		});
+	}
+}
+
+export class ZodNullable<S extends ZodType<any>> extends ZodType<S | null> {
+	constructor(public inner: S) {
+		super((data: unknown) => {
+			if (data === null) return null as Infer<S> | null;
+			return inner.parse(data);
+		});
+	}
+}
+
+export abstract class ZodAsyncType<T> extends ZodType<T> {
+	async safeParseAsync(
+		data: unknown
+	): Promise<{ success: true; data: T } | { success: false; error: unknown }> {
+		try {
+			const parsed = await this.parseAsync(data);
+			return { success: true, data: parsed };
+		} catch (error) {
+			return { success: false, error };
+		}
 	}
 }

@@ -28,4 +28,18 @@ export class ZodString extends ZodType<string> {
 			message || `String must be at most ${maxLength} characters long`
 		) as this;
 	}
+
+	regex(pattern: RegExp, message?: string): this {
+		return this.refine(
+			(val) => pattern.test(val),
+			message || `String must match the pattern ${pattern.source}`
+		) as this;
+	}
+
+	email(message?: string): this {
+		return this.regex(
+			/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
+			message || 'String must be a valid email address'
+		);
+	}
 }

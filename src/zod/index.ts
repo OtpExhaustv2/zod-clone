@@ -1,9 +1,13 @@
 import { ZodArray } from './types/ZodArray.js';
 import { ZodBoolean } from './types/ZodBoolean.js';
 import { ZodDate } from './types/ZodDate.js';
+import { ZodEnum } from './types/ZodEnum.js';
+import { ZodIntersection } from './types/ZodIntersection.js';
+import { ZodNativeEnum } from './types/ZodNativeEnum.js';
 import { ZodNumber } from './types/ZodNumber.js';
 import { ZodObject } from './types/ZodObject.js';
 import { ZodString } from './types/ZodString.js';
+import { ZodTuple } from './types/ZodTuple.js';
 import type { ZodType } from './types/ZodType.js';
 
 const z = {
@@ -15,6 +19,15 @@ const z = {
 		[K in keyof T]: ZodType<T[K]>;
 	}) => new ZodObject(shape),
 	array: <T>(itemType: ZodType<T>) => new ZodArray(itemType),
+	enum: <T extends string | number>(values: T[]) => new ZodEnum(values),
+	nativeEnum: <T extends Record<string, string | number>>(enumObject: T) =>
+		new ZodNativeEnum(enumObject),
+	intersection: <A extends ZodType<any>, B extends ZodType<any>>(
+		left: A,
+		right: B
+	) => new ZodIntersection(left, right),
+	tuple: <T extends [ZodType<any>, ...ZodType<any>[]]>(...schemas: T) =>
+		new ZodTuple(schemas),
 	coerce: {
 		string: () =>
 			z.string().coerce((data) => {
