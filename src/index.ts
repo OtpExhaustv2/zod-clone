@@ -1,6 +1,6 @@
-import z from './zod/index.js';
+import z, { type ZodType } from './zod/index.js';
 
-function runTest(name: string, fn: () => void) {
+const runTest = (name: string, fn: () => void) => {
 	console.log(`\n----- Testing ${name} -----`);
 	try {
 		fn();
@@ -8,7 +8,7 @@ function runTest(name: string, fn: () => void) {
 	} catch (error) {
 		console.error(`❌ ${name} tests failed:`, error);
 	}
-}
+};
 
 // Test basic types
 runTest('Basic Types', () => {
@@ -298,4 +298,84 @@ runTest('Pipeline', () => {
 
 	const result = usernamePipeline.parse('JohnDoe');
 	console.log('Username pipeline result:', result);
+});
+
+// Test ZodCustomAsync
+runTest('CustomAsync', async () => {
+	// Create an async validator that simulates API validation
+	const asyncEmailValidator = z.customAsync<string>(async (val) => {
+		if (typeof val !== 'string') {
+			throw new Error('Expected string');
+		}
+
+		// Simulate API call delay
+		await new Promise((resolve) => setTimeout(resolve, 2000));
+
+		if (!val.includes('@')) {
+			throw new Error('Invalid email format');
+		}
+
+		return val.toLowerCase();
+	});
+
+	try {
+		// This should be awaited since it returns a Promise
+		const result = await asyncEmailValidator.parseAsync('Test@Example.com');
+		console.log('Async email validation result:', result);
+
+		// This would fail but we'll catch it
+		await asyncEmailValidator.parseAsync('invalid-email');
+	} catch (error) {
+		console.log('Expected error from async validation:', error);
+	}
+});
+
+// Test ZodLazy for recursive schemas
+runTest('Lazy', () => {
+	// Define a recursive comment schema
+	type Comment = {
+		text: string;
+		replies: Comment[];
+	};
+
+	// Without lazy, this would cause an infinite recursion error
+	const commentSchema: ZodType<Comment> = z.lazy(() =>
+		z.object({
+			text: z.string(),
+			replies: z.array(commentSchema),
+		})
+	);
+
+	const validComment = {
+		text: 'Parent comment',
+		replies: [
+			{
+				text: 'First reply',
+				replies: [],
+			},
+			{
+				text: 'Second reply',
+				replies: [
+					{
+						text: 'Nested reply',
+						replies: [],
+					},
+				],
+			},
+		],
+	};
+
+	console.log(
+		'Recursive schema validation:',
+		commentSchema.parse(validComment)
+	);
+
+	// Invalid comment (missing text field)
+	try {
+		commentSchema.parse({
+			replies: [],
+		});
+	} catch (error) {
+		console.log('Expected error from recursive schema:', error);
+	}
 });

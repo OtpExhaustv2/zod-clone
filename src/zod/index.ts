@@ -1,9 +1,10 @@
 import { ZodArray } from './types/ZodArray.js';
 import { ZodBoolean } from './types/ZodBoolean.js';
-import { ZodCustom } from './types/ZodCustom.js';
+import { ZodCustom, ZodCustomAsync } from './types/ZodCustom.js';
 import { ZodDate } from './types/ZodDate.js';
 import { ZodEnum } from './types/ZodEnum.js';
 import { ZodIntersection } from './types/ZodIntersection.js';
+import { ZodLazy } from './types/ZodLazy.js';
 import { ZodLiteral } from './types/ZodLiteral.js';
 import { ZodNativeEnum } from './types/ZodNativeEnum.js';
 import { ZodNumber } from './types/ZodNumber.js';
@@ -43,6 +44,9 @@ const z = {
 	pipe: <A, B>(first: ZodType<A>, second: ZodType<B>) =>
 		new ZodPipeline(first, second),
 	custom: <T>(validator: (data: unknown) => T) => new ZodCustom<T>(validator),
+	customAsync: <T>(validator: (data: unknown) => Promise<T>) =>
+		new ZodCustomAsync<T>(validator),
+	lazy: <T>(getter: () => ZodType<T>) => new ZodLazy<T>(getter),
 	coerce: {
 		string: () =>
 			z.string().coerce((data) => {
