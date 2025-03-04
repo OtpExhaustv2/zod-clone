@@ -65,26 +65,26 @@ export class ZodObject<T extends Record<string, any>> extends ZodType<T> {
 		return new ZodObject(newShape);
 	}
 
-	// omit<K extends keyof T>(keys: K[]): ZodObject<Omit<T, K>> {
-	// 	const newShape = {} as Omit<T, K>;
-	// 	for (const key in this.shape) {
-	// 		if (!keys.includes(key as K)) {
-	// 			newShape[key as K] = this.shape[key] as unknown as T[K];
-	// 		}
-	// 	}
+	omit<K extends keyof T>(keys: K[]): ZodObject<Omit<T, K>> {
+		const newShape: { [k: string]: ZodType<any> } = {};
+		for (const key in this.shape) {
+			if (!keys.includes(key as unknown as K)) {
+				newShape[key] = this.shape[key];
+			}
+		}
 
-	// 	return new ZodObject(newShape);
-	// }
+		return new ZodObject(newShape) as unknown as ZodObject<Omit<T, K>>;
+	}
 
-	// partial(): ZodObject<{ [K in keyof T]?: Infer<T[K]> }> {
-	// 	const newShape = {} as { [K in keyof T]: ZodOptional<ZodType<T[K]>> };
-	// 	for (const key in this.shape) {
-	// 		newShape[key] = this.shape[key].optional();
-	// 	}
-	// 	return new ZodObject(newShape) as ZodObject<{
-	// 		[K in keyof T]?: Infer<T[K]>;
-	// 	}>;
-	// }
+	partial(): ZodObject<{ [K in keyof T]?: T[K] }> {
+		const newShape: { [k: string]: ZodType<any> } = {};
+		for (const key in this.shape) {
+			newShape[key] = this.shape[key].optional();
+		}
+		return new ZodObject(newShape) as unknown as ZodObject<{
+			[K in keyof T]?: T[K];
+		}>;
+	}
 
 	_getShape(): { [K in keyof T]: ZodType<T[K]> } {
 		return this.shape;

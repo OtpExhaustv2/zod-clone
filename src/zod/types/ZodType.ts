@@ -43,14 +43,15 @@ export abstract class ZodType<T> {
 		message?: string
 	): ZodAsyncType<T> {
 		const parent = this;
+		message = message || 'Validation failed';
 		return new (class extends ZodAsyncType<T> {
 			constructor() {
 				super((data: unknown) => parent.parse(data));
 			}
 			async parseAsync(data: unknown): Promise<T> {
 				const parsed = await parent.parseAsync(data);
-				const ok = await Promise.resolve(check(parsed));
-				if (!ok) {
+				const result = await Promise.resolve(check(parsed));
+				if (!result) {
 					throw new Error(message || 'Async refinement failed');
 				}
 				return parsed;
@@ -62,8 +63,7 @@ export abstract class ZodType<T> {
 		data: unknown
 	): { success: true; data: T } | { success: false; error: unknown } {
 		try {
-			const parsed = this.parse(data);
-			return { success: true, data: parsed };
+			return { success: true, data: this.parse(data) };
 		} catch (error) {
 			return { success: false, error };
 		}
@@ -73,15 +73,14 @@ export abstract class ZodType<T> {
 		data: unknown
 	): Promise<{ success: true; data: T } | { success: false; error: unknown }> {
 		try {
-			const result = await this.parseAsync(data);
-			return { success: true, data: result };
-		} catch (e) {
-			return { success: false, error: e };
+			return { success: true, data: await this.parseAsync(data) };
+		} catch (error) {
+			return { success: false, error };
 		}
 	}
 
 	coerce(coerceFn: (data: unknown) => unknown): this {
-		return this.withParser((data) => {
+		return this.withParser((data: unknown) => {
 			const coerced = coerceFn(data);
 			return this.parse(coerced);
 		});
@@ -97,6 +96,10 @@ export abstract class ZodType<T> {
 
 	nullable(): ZodNullable<this> {
 		return new ZodNullable(this);
+	}
+
+	pipe<B>(schema: ZodType<B>): ZodPipeline<T, B> {
+		return new ZodPipeline(this, schema);
 	}
 }
 
@@ -136,6 +139,19 @@ export class ZodNullable<S extends ZodType<any>> extends ZodType<S | null> {
 		super((data: unknown) => {
 			if (data === null) return null as Infer<S> | null;
 			return inner.parse(data);
+		});
+	}
+}
+
+export class ZodPipeline<A, B> extends ZodType<B> {
+	constructor(
+		public readonly first: ZodType<A>,
+		public readonly second: ZodType<B>
+	) {
+		super((data: unknown) => {
+			const firstResult = this.first.parse(data);
+
+			return this.second.parse(firstResult);
 		});
 	}
 }

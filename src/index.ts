@@ -1,51 +1,301 @@
 import z from './zod/index.js';
 
-export enum Status {
+function runTest(name: string, fn: () => void) {
+	console.log(`\n----- Testing ${name} -----`);
+	try {
+		fn();
+		console.log(`✅ ${name} tests passed`);
+	} catch (error) {
+		console.error(`❌ ${name} tests failed:`, error);
+	}
+}
+
+// Test basic types
+runTest('Basic Types', () => {
+	// String
+	const stringSchema = z.string().min(3).max(20);
+	console.log('String validation:', stringSchema.parse('hello'));
+
+	// Number
+	const numberSchema = z.number().min(18);
+	console.log('Number validation:', numberSchema.parse(21));
+
+	// Boolean
+	const booleanSchema = z.boolean();
+	console.log('Boolean validation:', booleanSchema.parse(true));
+
+	// Date
+	const dateSchema = z.date();
+	console.log('Date validation:', dateSchema.parse(new Date()));
+
+	const dateAsStringSchema = z.date();
+	console.log(
+		'Date as string validation:',
+		dateAsStringSchema.parse('2023-01-01')
+	);
+});
+
+// Test object and its methods
+runTest('Object and Methods', () => {
+	const userSchema = z.object({
+		id: z.number(),
+		name: z.string().min(2),
+		email: z.string().min(5),
+		age: z.number().min(18),
+	});
+
+	// Basic object validation
+	console.log(
+		'Object validation:',
+		userSchema.parse({
+			id: 1,
+			name: 'John',
+			email: 'john@example.com',
+			age: 25,
+		})
+	);
+
+	// Test pick
+	const profileSchema = userSchema.pick(['name', 'email']);
+	console.log(
+		'Pick method:',
+		profileSchema.parse({
+			name: 'John',
+			email: 'john@example.com',
+		})
+	);
+
+	// Test omit
+	const publicUserSchema = userSchema.omit(['email']);
+	console.log(
+		'Omit method:',
+		publicUserSchema.parse({
+			id: 1,
+			name: 'John',
+			age: 25,
+		})
+	);
+
+	// Test extend
+	const addressSchema = z.object({
+		address: z.string(),
+		city: z.string(),
+		zipCode: z.string(),
+	});
+
+	const userWithAddressSchema = userSchema.extend(addressSchema);
+	console.log(
+		'Extend method:',
+		userWithAddressSchema.parse({
+			id: 1,
+			name: 'John',
+			email: 'john@example.com',
+			age: 25,
+			address: '123 Main St',
+			city: 'New York',
+			zipCode: '10001',
+		})
+	);
+
+	// Test partial
+	const partialSchema = userSchema.partial();
+	console.log(
+		'Partial method:',
+		partialSchema.parse({
+			name: 'John',
+		})
+	);
+});
+
+// Test union
+runTest('Union', () => {
+	const stringOrNumber = z.union(z.string(), z.number());
+	console.log('Union with string:', stringOrNumber.parse('hello'));
+	console.log('Union with number:', stringOrNumber.parse(123));
+});
+
+// Test literal
+runTest('Literal', () => {
+	const stringLiteral = z.literal('hello');
+	const numberLiteral = z.literal(42);
+	const booleanLiteral = z.literal(true);
+
+	console.log('String literal:', stringLiteral.parse('hello'));
+	console.log('Number literal:', numberLiteral.parse(42));
+	console.log('Boolean literal:', booleanLiteral.parse(true));
+});
+
+// Test record
+runTest('Record', () => {
+	const stringToNumberRecord = z.record(z.string(), z.number());
+	console.log(
+		'Record validation:',
+		stringToNumberRecord.parse({
+			a: 1,
+			b: 2,
+			c: 3,
+		})
+	);
+});
+
+enum Status {
 	Pending = 'pending',
 	Completed = 'completed',
 	Failed = 'failed',
 }
 
-const baseSchema = z.object({
-	username: z.string().min(3).max(20).default('John Doe'),
-	age: z.number().min(18, 'You must be at least 18 years old'),
-	id: z.coerce.number().nullable(),
-	// test: z.tuple(z.string(), z.number()),
-	// a: z.intersection(z.object({ a: z.string() }), z.object({ b: z.number() })),
+// Test enum
+runTest('Enum', () => {
+	// String enum
+	const fruitEnum = z.enum(['apple', 'banana', 'orange']);
+	console.log('String enum:', fruitEnum.parse('apple'));
+
+	// Native enum
+	const statusEnum = z.nativeEnum(Status);
+	console.log('Native enum:', statusEnum.parse(Status.Completed));
 });
 
-const addressSchema = z.object({
-	address: z.string().min(3).max(20),
+// Test array
+runTest('Array', () => {
+	const numberArray = z.array(z.number());
+	console.log('Array validation:', numberArray.parse([1, 2, 3, 4, 5]));
 });
 
-const pickSchema = baseSchema.pick(['username', 'id']);
-
-// const partialSchema = baseSchema.partial();
-// type A = Infer<typeof partialSchema>;
-
-const full = baseSchema.extend(addressSchema);
-
-const result = pickSchema.safeParse({
-	age: 18,
-	id: null,
-	address: '10540',
-	test: ['1', 2],
-	a: { a: '1' },
+// Test tuple
+runTest('Tuple', () => {
+	const pointTuple = z.tuple(z.number(), z.number(), z.string());
+	console.log('Tuple validation:', pointTuple.parse([10, 20, 'point']));
 });
 
-console.dir(result, { depth: null });
+// Test intersection
+runTest('Intersection', () => {
+	const personSchema = z.object({
+		name: z.string(),
+		age: z.number(),
+	});
 
-// const asyncSchema = z.string().refineAsync(async (val) => {
-// 	await new Promise((resolve) => setTimeout(resolve, 1000));
-// 	return !val.includes('bad');
-// }, "Value cannot include 'bad'");
+	const employeeSchema = z.object({
+		role: z.string(),
+		department: z.string(),
+	});
 
-// asyncSchema
-// 	.safeParseAsync('This is good')
-// 	.then((result) => console.log('Async refinement pass:', result))
-// 	.catch((err) => console.error('Async refinement fail:', err));
+	const personEmployeeSchema = z.intersection(personSchema, employeeSchema);
+	console.log(
+		'Intersection validation:',
+		personEmployeeSchema.parse({
+			name: 'John',
+			age: 30,
+			role: 'Developer',
+			department: 'Engineering',
+		})
+	);
+});
 
-// asyncSchema
-// 	.safeParseAsync('This is bad')
-// 	.then((result) => console.log('Async refinement pass:', result))
-// 	.catch((err) => console.error('Async refinement fail:', err));
+// Test coercion
+runTest('Coercion', () => {
+	const stringCoercion = z.coerce.string();
+	console.log('String coercion from number:', stringCoercion.parse(123));
+	console.log('String coercion from null:', stringCoercion.parse(null));
+
+	const numberCoercion = z.coerce.number();
+	console.log('Number coercion from string:', numberCoercion.parse('123'));
+});
+
+// Test complex schema with multiple features
+runTest('Complex Schema', () => {
+	// Define a complex user schema
+	const userSchema = z.object({
+		id: z.number(),
+		name: z.string().min(2),
+		status: z.nativeEnum(Status),
+		tags: z.array(z.string()),
+		metadata: z.record(
+			z.string(),
+			z.union(z.string(), z.number(), z.boolean())
+		),
+		preferences: z
+			.object({
+				theme: z.enum(['light', 'dark', 'system']),
+				notifications: z.boolean(),
+				language: z.literal('en-US'),
+			})
+			.partial(),
+		contact: z.union(
+			z.object({ type: z.literal('email'), value: z.string() }),
+			z.object({ type: z.literal('phone'), value: z.string() })
+		),
+	});
+
+	// Test with valid data
+	const validUser = {
+		id: 1,
+		name: 'John Doe',
+		status: Status.Completed,
+		tags: ['developer', 'typescript'],
+		metadata: {
+			lastLogin: '2023-01-01',
+			loginCount: 42,
+			isActive: true,
+		},
+		preferences: {
+			theme: 'dark',
+			notifications: true,
+		},
+		contact: {
+			type: 'email',
+			value: 'john@example.com',
+		},
+	};
+
+	console.log('Complex schema validation:', userSchema.parse(validUser));
+});
+
+// Test ZodPipeline
+runTest('Pipeline', () => {
+	// String to number pipeline using a custom function
+	const stringToNumberSchema = z.string().pipe(
+		z.custom((val) => {
+			const num = Number(val);
+			if (isNaN(num)) {
+				throw new Error('Not a number');
+			}
+			return num;
+		})
+	);
+
+	console.log('String to number pipeline:', stringToNumberSchema.parse('42'));
+
+	// Using the pipe method for data transformation
+	const validateThenTransform = z.string().pipe(
+		z.custom((val) => {
+			if (typeof val !== 'string') {
+				throw new Error('Expected string');
+			}
+			return {
+				length: val.length,
+				value: val,
+			};
+		})
+	);
+
+	console.log('Pipe result:', validateThenTransform.parse('hello'));
+
+	// More complex pipeline
+	const usernamePipeline = z
+		.string()
+		.min(3)
+		.pipe(
+			z.custom((val) => {
+				if (typeof val !== 'string') {
+					throw new Error('Expected string');
+				}
+				return {
+					username: val,
+					normalized: val.toLowerCase(),
+				};
+			})
+		);
+
+	const result = usernamePipeline.parse('JohnDoe');
+	console.log('Username pipeline result:', result);
+});
